@@ -41,7 +41,7 @@ class MethodWizardStep(ipw.VBox, awb.WizardAppWidgetStep):
         self.rendered = False
 
         return
-
+    
     def render(self):
         """Render the wizard contents if not already rendered."""
         if self.rendered:
@@ -103,7 +103,6 @@ class MethodWizardStep(ipw.VBox, awb.WizardAppWidgetStep):
         self.options_widget.disable(True)
         return
 
-
 class MLIPOptionsWidget(ipw.VBox):
     """Widget for selecting the MLIP input options."""
 
@@ -140,9 +139,7 @@ class MLIPOptionsWidget(ipw.VBox):
         self.enable_dftd3_chk = ipw.Checkbox(
             value=False, description="Use DFTd3", indent=True
         )
-        #self.enable_dftd3_chk.observe(self._enable_dftd3_options, "value")
-        #ipw.dlink((self.enable_dftd3_chk, "value"), (self.model, "use_dftd3"))
-        
+                
         self.pressure_text = ipw.Text(
             value="0.0",
             description="Pressure:",
@@ -164,9 +161,8 @@ class MLIPOptionsWidget(ipw.VBox):
         )
 
         self.ff_file = FileUploadWidget(description="MLIP model:")
-        print("force field",self.ff_file)
-        self.ff_file.disable(False)
-
+        self.ff_file.observe(self._on_file_upload, names="value")
+        
         self.children = [
             self.calculation_dropdown,
             self.optimisation_dropdown,
@@ -181,6 +177,18 @@ class MLIPOptionsWidget(ipw.VBox):
 
         return
 
+    def _on_file_upload(self, change):
+        """When file upload button is pressed."""
+        #self.output.clear_output()
+        print("change", change)
+        uploaded = change["new"]
+        if not uploaded:
+            self.status.value = "<i>No file uploaded yet.</i>"
+            return
+        self.ff_file.disable(True)
+        self._update_children()
+        return
+    
     def _get_mm_theory_options(self) -> list[str]:
         """Get the available MM theory options."""
         try:
