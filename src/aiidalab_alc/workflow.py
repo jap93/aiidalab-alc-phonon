@@ -5,8 +5,7 @@ import ipywidgets as ipw
 import traitlets as tl
 from aiida.orm import SinglefileData
 
-from aiidalab_alc.common.file_handling import FileUploadWidget
-
+from aiidalab_alc.common.file_handling import FileUploadWidget, FilenameSelector, create_filename_selector
 
 class MLIPWorkflowModel(tl.HasTraits):
     """The model for setting up a MLIP workflow."""
@@ -58,7 +57,7 @@ class MethodWizardStep(ipw.VBox, awb.WizardAppWidgetStep):
         )
 
         self.options_widget = MLIPOptionsWidget(self.model)
-        ipw.dlink((self.options_widget.ff_file, "file"), (self.model, "force_field"))
+        #ipw.dlink((self.options_widget.ff_file, "file"), (self.model, "force_field"))
 
         self.submit_btn = ipw.Button(
             description="Submit Options",
@@ -160,8 +159,9 @@ class MLIPOptionsWidget(ipw.VBox):
             layout={"width": "50%"},
         )
 
-        self.ff_file = FileUploadWidget(description="MLIP model:")
-        self.ff_file.observe(self._on_file_upload, names="value")
+        #self.ff_file = FileUploadWidget(description="MLIP model:")
+        self.ff_file = FilenameSelector(label="Model filename:", placeholder="mace_mp_small.model",extensions=[".model"])
+        self.ff_file.observe(self._on_file_upload, "force_field")
         
         self.children = [
             self.calculation_dropdown,
@@ -207,7 +207,6 @@ class MLIPOptionsWidget(ipw.VBox):
     #    return
 
     def _update_optimisation(self, _) -> None:
-        print("selected index ", self.calculation_dropdown.value)
         if self.calculation_dropdown.value.lower() == "geometry optimisation":
             self.optimisation_dropdown.disabled = False
             self.pressure_text.disabled = False
