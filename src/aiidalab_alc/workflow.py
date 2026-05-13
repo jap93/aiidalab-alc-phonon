@@ -14,7 +14,7 @@ class MLIPWorkflowModel(tl.HasTraits):
     optimisation = tl.Unicode("NONE", allow_none=False)
     maximum_force= tl.Float("NONE", allow_none=False)
     pressure = tl.Float("NONE", allow_none=False)
-    force_field = tl.Instance(SinglefileData, allow_none=True)
+    force_field = tl.Unicode(" ", allow_none=True)
     submitted = tl.Bool(False).tag(sync=True)
     use_dftd3 = tl.Bool(False).tag(sync=True)
 
@@ -95,7 +95,7 @@ class MethodWizardStep(ipw.VBox, awb.WizardAppWidgetStep):
             raise e
         
         if not self.model.force_field:
-            print("ERROR: No MLIP file found...")
+            print("ERROR: No MLIP file found...", self.model.force_field)
             return
         self.submit_btn.description = "Submitted"
         self.submit_btn.disabled = True
@@ -159,9 +159,10 @@ class MLIPOptionsWidget(ipw.VBox):
             layout={"width": "50%"},
         )
 
-        #self.ff_file = FileUploadWidget(description="MLIP model:")
-        self.ff_file = FilenameSelector(label="Model filename:", placeholder="mace_mp_small.model",extensions=[".model"])
-        self.ff_file.observe(self._on_file_upload, "force_field")
+        self.ff_file = create_filename_selector(label="Model filename:", placeholder="mace_mp_small.model", 
+                                        default = "mace_mp_small.model")
+    
+        self.ff_file.observe(self.on_filename_change, names="filename")
         
         self.children = [
             self.calculation_dropdown,
@@ -176,6 +177,9 @@ class MLIPOptionsWidget(ipw.VBox):
         # self.layout = Layout(margin="auto")
 
         return
+    
+    def on_filename_change(self, change):
+        self.model.force_field = self.ff_file.value
 
     def _on_file_upload(self, change):
         """When file upload button is pressed."""
@@ -229,5 +233,5 @@ class MLIPOptionsWidget(ipw.VBox):
         """Disable the input fields."""
         for child in self.children:
             child.disabled = val
-        self.ff_file.disable(val)
+        #self.ff_file.disable(val)
         return

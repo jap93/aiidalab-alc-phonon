@@ -5,6 +5,13 @@ from aiida.engine import submit
 from aiida.orm import Dict, load_code
 from ipywidgets import dlink
 
+from aiida_mlip.data.model import ModelData
+from aiida.orm import StructureData
+from aiida.orm import load_code
+from aiida.orm import Str, Float, Bool, Int
+from aiida.plugins import CalculationFactory
+from aiida_workgraph import WorkGraph
+
 from aiidalab_alc.resources import ComputationalResourcesModel
 from aiidalab_alc.results import ResultsModel
 from aiidalab_alc.structure import StructureStepModel
@@ -37,7 +44,7 @@ class MainAppModel(tl.HasTraits):
             self.process = MLIPProcess(self)
             self.process.submit_process()
             self.block_results = False
-            self.results_model.process_uuid = self.process.node.uuid
+            self.results_model.process_uuid = "1" #self.process.node.uuid
         else:
             print("ERROR: Input Validation Failed")
         return
@@ -82,54 +89,52 @@ class MLIPProcess:
             if not model.structure_model.has_file:
                 print("No structure provided.")
                 return False
-        if model.workflow_model.use_mm:
-            if not model.workflow_model.force_field:
-                print("No force field provided.")
-                return False
-            if not model.workflow_model.qm_region:
-                print("No qm_ region specified")
-                return False
+            
+        if not model.workflow_model.force_field:
+            print("No force field provided.")
+            return False
+        
         # Add more validation checks as needed
         return True
 
     def submit_process(self):
         """Submit the AiiDA process."""
-        builder = load_code(self.model.resource_model.code_label).get_builder()
-        if self.model.structure_model.has_file:
-            builder.structure = self.model.structure_model.structure_file
-        else:
-            builder.structure = self.model.structure_model.structure
-        builder.qm_parameters = Dict(
-            {
-                "theory": self.model.workflow_model.qm_theory,
-                "basis": "cc-pvtz"
-                if self.model.workflow_model.basis_quality
-                else "cc-pvdz",
-                "method": "dft",
-                "functional": "B3LYP",
-            }
-        )
-        if self.model.workflow_model.use_mm:
-            builder.mm_parameters = Dict(
-                {
-                    "theory": self.model.workflow_model.mm_theory,
-                }
-            )
-            builder.force_field_file = self.model.workflow_model.force_field
-            builder.qmmm_parameters = Dict(
-                {
-                    "qm_region": self.model.workflow_model.qm_region,
-                }
-            )
-        builder.calculation_parameters = Dict({"gradients": True})
-        builder.optimisation_parameters = Dict({})
-        if self.model.resource_model.ncpus > 1:
-            builder.metadata.options.withmpi = True
-        builder.metadata.options.resources = {
-            "num_mpiprocs_per_machine": self.model.resource_model.ncpus,
-            "num_cores_per_machine": self.model.resource_model.ncpus,
-            "num_machines": 1,
-            "tot_num_mpiprocs": self.model.resource_model.ncpus,
+
+        code = load_code(self.model.resource_model.code_label)
+        structure = self.model.structure_model.structure
+
+        model_file = self.model.workflow_model.force_field
+        print("force filed", self.model.workflow_model.force_field)
+        architecture="mace"
+        model = ModelData.from_local(model_file, architecture=architecture)
+
+        inputs_geom = {
+        "code": code,
+        "model": model,
+        "struct": structure,
+        "device": Str("cpu"),
+        "fmax": self.model.workflow_model.maximum_force,
+        "opt_cell_lengths": Bool(True),
+        "opt_cell_fully": Bool(True),
+        "metadata": {"options": {"resources": {"num_machines": 1}}},
         }
-        self.node = submit(builder)
+        
+        geomoptCalc = CalculationFactory("mlip.opt")
+
+        wg = WorkGraph("GeomOptPhonGraph")
+
+        gm_calc = wg.add_task(
+            geomoptCalc,
+            name="geomopt_calc",
+            **inputs_geom
+        )
+
+        #opt_struct = gm_calc.outputs.final_structure
+        wg.outputs.results = wg.tasks.geomopt_calc.outputs.results_dict
+        wg.outputs.results_file = wg.tasks.geomopt_calc.outputs.xyz_output
+
+        wg.run()
+
+        #wg.outputs.results.value.get_dict()
+        
         return

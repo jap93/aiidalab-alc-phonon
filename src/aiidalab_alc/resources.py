@@ -5,7 +5,7 @@ import ipywidgets as ipw
 import traitlets as tl
 from aiida.orm import Code, QueryBuilder
 
-from aiidalab_alc.utils import test_aiida_chemsh_import
+from aiidalab_alc.utils import test_resource_import
 
 
 class ComputationalResourcesModel(tl.HasTraits):
@@ -62,8 +62,8 @@ class ComputationalResourcesWizardStep(ipw.VBox, awb.WizardAppWidgetStep):
             """,
             layout={"margin": "auto"},
         )
-        self.chemsh_installed = test_aiida_chemsh_import()
-        self.chemsh_warning = ipw.HTML("", layout={"margin": "auto"})
+        self.mlips_installed = test_resource_import()
+        self.mlips_warning = ipw.HTML("", layout={"margin": "auto"})
 
         self.guide = ipw.HTML(
             self.model.default_guide,
@@ -81,7 +81,7 @@ class ComputationalResourcesWizardStep(ipw.VBox, awb.WizardAppWidgetStep):
         self.children = [
             # self.header,
             self.guide,
-            self.chemsh_warning if not self.chemsh_installed else ipw.HTML(""),
+            self.mlips_warning if not self.mlips_installed else ipw.HTML(""),
             ResourceSetupBox(model=self.model),
             self.submit_btn,
         ]
@@ -107,17 +107,17 @@ class ComputationalResourcesWizardStep(ipw.VBox, awb.WizardAppWidgetStep):
 
     def _refresh_widget(self) -> None:
         """Refresh the widget's contents."""
-        self.chemsh_installed = test_aiida_chemsh_import()
-        if not self.chemsh_installed:
+        self.mlips_installed = test_resource_import()
+        if not self.mlips_installed:
             self.submit_btn.disabled = True
-            self.chemsh_warning.value = (
+            self.mlips_warning.value = (
                 "<p style='color:red;'>"
-                "The aiida-MLIP plugin is not installed. Please install it "
+                "The aiida-mlip plugin is not installed. Please install it "
                 "to proceed."
                 "</p>"
             )
         else:
-            self.chemsh_warning.value = ""
+            self.mlips_warning.value = ""
             self.submit_btn.disabled = False
 
 
@@ -138,6 +138,7 @@ class ResourceSetupBox(ipw.VBox):
 
         self.code = ipw.Combobox(
             description="Code:",
+            value = "janus@localhost",
             layout={"width": "60%"},
         )
         tl.link((self.code, "value"), (self.model, "code_label"))

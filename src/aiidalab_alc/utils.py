@@ -86,7 +86,7 @@ def open_link_in_new_tab(path: str, _=None) -> None:
     return
 
 
-def test_aiida_chemsh_import() -> bool:
+def test_resource_import() -> bool:
     """
     Test if the aiida-MLIP plugin is installed.
 
@@ -96,7 +96,7 @@ def test_aiida_chemsh_import() -> bool:
         True if the aiida-MLIP plugin is installed, False otherwise.
     """
     try:
-        import_module("aiida_MLIP")
+        import_module("aiida_mlip")
     except ImportError:
         return False
     except Exception as e:
