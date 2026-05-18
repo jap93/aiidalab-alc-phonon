@@ -4,6 +4,7 @@
 *.swo
 *.swp
 *.xml
+*.json
 ~*
 *~
 .project

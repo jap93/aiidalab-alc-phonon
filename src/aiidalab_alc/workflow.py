@@ -14,7 +14,7 @@ class MLIPWorkflowModel(tl.HasTraits):
     optimisation = tl.Unicode("NONE", allow_none=False)
     maximum_force= tl.Float("NONE", allow_none=False)
     pressure = tl.Float("NONE", allow_none=False)
-    force_field = tl.Unicode(" ", allow_none=True)
+    force_field = tl.Unicode("mace_mp_small.model", allow_none=True)
     submitted = tl.Bool(False).tag(sync=True)
     use_dftd3 = tl.Bool(False).tag(sync=True)
 

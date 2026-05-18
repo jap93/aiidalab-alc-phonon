@@ -44,7 +44,7 @@ class MainAppModel(tl.HasTraits):
             self.process = MLIPProcess(self)
             self.process.submit_process()
             self.block_results = False
-            self.results_model.process_uuid = "1" #self.process.node.uuid
+            self.results_model.process_uuid = self.process.node.uuid
         else:
             print("ERROR: Input Validation Failed")
         return
@@ -136,5 +136,10 @@ class MLIPProcess:
         wg.run()
 
         #wg.outputs.results.value.get_dict()
+
+        uuid = wg.uuid
+        pk = wg.pk
+        self.node = wg.nodes["geomopt_calc"]
+        print("workgraph complete", self.node, uuid, pk)
         
         return
