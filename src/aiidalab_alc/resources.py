@@ -11,7 +11,9 @@ from aiidalab_alc.utils import test_resource_import
 class ComputationalResourcesModel(tl.HasTraits):
     """Model for the resource setup stage."""
 
+    code_name = tl.Unicode("").tag(sync=True)
     code_label = tl.Unicode("").tag(sync=True)
+    device_name = tl.Unicode("").tag(sync=True)
     ncpus = tl.Int(1).tag(sync=True)
     process_label = tl.Unicode("").tag(sync=True)
     process_description = tl.Unicode("").tag(sync=True)
@@ -138,7 +140,7 @@ class ResourceSetupBox(ipw.VBox):
 
         self.code = ipw.Combobox(
             description="Code:",
-            value = "janus@localhost",
+            value = "janus",
             layout={"width": "60%"},
         )
         tl.link((self.code, "value"), (self.model, "code_label"))
@@ -155,7 +157,17 @@ class ResourceSetupBox(ipw.VBox):
         )
         self.update_codes()
 
-        # tl.link((self.code, "value"), (self.model, "code"))
+        tl.link((self.code, "value"), (self.model, "code_name"))
+
+        self.device_dropdown = ipw.Dropdown(
+            options=["cpu", "gpu"],
+            value = "cpu",
+            description="Device:",
+            disabled=False,
+            layout=ipw.Layout(width="80%"),
+        )
+        self.device_dropdown.observe(self._update_device, names='value')
+        tl.link((self.device_dropdown, "value"), (self.model, "device_name"))
 
         self.ncpus_input = ipw.BoundedIntText(
             value=self.model.ncpus,
@@ -188,6 +200,7 @@ class ResourceSetupBox(ipw.VBox):
 
         self.children = [
             self.code_box,
+            self.device_dropdown,
             self.ncpus_input,
             self.label,
             self.description,
@@ -203,3 +216,12 @@ class ResourceSetupBox(ipw.VBox):
         if code_labels:
             self.code.value = code_labels[0]
         return
+    
+    def _update_device(self, _) -> None:
+        """Update the device options."""
+        
+        if self.device_dropdown.value.lower() == "cpu":
+            self.ncpus_input.disabled = False
+        else:
+            self.ncpus_input.disabled = True
+            

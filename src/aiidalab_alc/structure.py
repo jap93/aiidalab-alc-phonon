@@ -132,11 +132,12 @@ class StructureWizardStep(ipw.VBox, awb.WizardAppWidgetStep):
     def _on_file_upload(self, change=None):
         """When file upload button is pressed."""
         if self.model.has_file:
-            structure = self._get_ase_object_from_file(
+            atoms = self._get_ase_object_from_file(
                 self.model.structure_file.filename, self.model.structure_file.content
             )
-            if structure:
-                self.viewer = awb.viewers.StructureDataViewer(structure=structure)
+            self.model.structure = self._ase_to_structure_data(atoms) if atoms else None
+            if self.model.structure:
+                self.viewer = awb.viewers.StructureDataViewer(structure=atoms)
             else:
                 self.viewer = ipw.HTML(
                     "<p>Could not visualise structure from file...</p>"
@@ -146,6 +147,7 @@ class StructureWizardStep(ipw.VBox, awb.WizardAppWidgetStep):
 
     def _get_ase_object_from_file(self, fname: str, content: bytes) -> ase.Atoms | None:
         suffix = "".join(Path(fname).suffixes)
+        print("_get_ase_object_from_file", suffix, "fname", fname)
         with NamedTemporaryFile(suffix=suffix) as tmpf:
             tmpf.write(content)
             tmpf.flush()
@@ -155,6 +157,10 @@ class StructureWizardStep(ipw.VBox, awb.WizardAppWidgetStep):
                 structure = None
         return structure
 
+    def _ase_to_structure_data(self, atoms: ase.Atoms) -> StructureData:
+        """Convert ASE Atoms object to AiiDA StructureData."""
+        return StructureData(ase=atoms)
+
     def submit_structure(self, _):
         """Submit the structure step."""
         if self.model.has_file or self.model.has_structure:
@@ -163,6 +169,7 @@ class StructureWizardStep(ipw.VBox, awb.WizardAppWidgetStep):
             self.submit_btn.disabled = True
             self.submit_btn.description = "Submitted"
             self.model.submitted = True
+            print("submitted",self.model.structure_file, self.model.structure)
         else:
             self.model.submitted = False
         return

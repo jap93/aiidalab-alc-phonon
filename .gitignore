@@ -16,5 +16,6 @@
 .ruff_cache
 build/
 dist/
+work/
 pip-wheel-metadata/
 .tox/
