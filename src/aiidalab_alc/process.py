@@ -101,57 +101,44 @@ class MLIPProcess:
 
     def submit_process(self):
         """Submit the AiiDA process."""
-        from aiida.orm import StructureData
-        from ase.build import bulk
-        from aiida.orm import Str, Float, Bool
-
         code = load_code(self.model.resource_model.code_name)
         print("code", code)
         device = self.model.resource_model.device_name
-        print("device", device)
-        print("struc model", self.model.structure_model.structure)
+        print("device", device)        
         structure = self.model.structure_model.structure
-        print("struc model", self.model.structure_model.structure_file.filename)
-        #structure_file = self.model.structure_model.structure_file.filename
-        #if not Path(structure_file).exists():
-        #    import ase.io
-        #    ase.io.write(structure_file, structure)
-        #print("structure", structure)
         
         model_file = self.model.workflow_model.force_field
         if not Path(model_file).exists():
             print("model file does not exist", model_file)
         print("model file", model_file)
         architecture = self.model.workflow_model.architecture
-        model = ModelData.from_local(model_file, architecture=architecture)
+        mlip_model = ModelData.from_local(model_file, architecture=architecture)
 
         calculation_style = self.model.workflow_model.calc_style.lower()
         optimisation = self.model.workflow_model.optimisation.lower()
         print("calc_style", calculation_style, "optimisation", optimisation)
         
         if calculation_style == "geometry optimisation":
-            
             inputs_geom = {
                 "code": code,
-                "model": model,
+                "model": mlip_model,
                 "struct": structure,
                 "device": Str(device),
-                "fmax": Float(0.1),
-                "fmax": self.model.workflow_model.maximum_force,
+                "fmax": Float(self.model.workflow_model.maximum_force),
                 "metadata": {"options": {"resources": {"num_machines": 1}}},
             }
 
             if optimisation == "cell lengths":
                 inputs_geom["opt_cell_lengths"] = Bool(True)
             else:
-                inputs_geom["opt_cell_fully"] = Bool(False),
+                inputs_geom["opt_cell_fully"] = Bool(False)
         
             geomoptCalc = CalculationFactory("mlip.opt")
 
         else: # must be single point
             inputs_geom = {
                 "code": code,
-                "model": model,
+                "model": mlip_model,
                 "struct": structure,
                 "device": Str(device),
                 "metadata": {"options": {"resources": {"num_machines": 1}}},
@@ -161,29 +148,17 @@ class MLIPProcess:
 
         wg = WorkGraph("GeomOptPhonGraph")
 
-        gm_calc = wg.add_task(
+        wg.add_task(
             geomoptCalc,
             name="geomopt_calc",
             **inputs_geom
         )
 
-        #opt_struct = gm_calc.outputs.final_structure
+        # Map outputs to the WorkGraph
         wg.outputs.results = wg.tasks.geomopt_calc.outputs.results_dict
-        wg.outputs.results_file = wg.tasks.geomopt_calc.outputs.xyz_output
+        if calculation_style == "geometry optimisation":
+            wg.outputs.structure = wg.tasks.geomopt_calc.outputs.structure
 
-        wg.run()
-
-        if wg.process.is_failed:
-            print("WorkGraph failed")
-
-        if wg.process.exit_status != 0:
-            print(f"Failed with exit status {wg.process.exit_status}")
-
-        #wg.outputs.results.value.get_dict()
-
-        uuid = wg.uuid
-        pk = wg.pk
-        self.node = wg.nodes["geomopt_calc"]
-        print("nodes", wg.nodes)
-        print("workgraph complete",self.node.outputs["remote_folder"] ,self.node.outputs["xyz_output"], uuid, pk)
+        self.node = wg.submit()
+        print(f"WorkGraph submitted: {self.node.uuid}")
         return

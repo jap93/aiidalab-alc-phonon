@@ -121,6 +121,9 @@ class ResultsWizardStep(ipw.VBox, awb.WizardAppWidgetStep):
             self.children = [ipw.HTML("Waiting for calculation results...")]
             return
 
+        # Process status monitor
+        status_vwr = awb.ProcessStatusWidget(self.model.process.uuid)
+
         outputs = dict(self.model.outputs)
 
         # 1. Structure Panel
@@ -183,6 +186,7 @@ class ResultsWizardStep(ipw.VBox, awb.WizardAppWidgetStep):
 
         self.children = [
             ipw.HTML(f"<h3>Results for Process: {self.model.process_uuid}</h3>"),
+            status_vwr,
             tabs,
         ]
         

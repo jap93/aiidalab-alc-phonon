@@ -10,6 +10,7 @@ from aiidalab_alc.common.file_handling import FileUploadWidget, FilenameSelector
 class MLIPWorkflowModel(tl.HasTraits):
     """The model for setting up a MLIP workflow."""
 
+    #parameters for MLIP
     calc_style = tl.Unicode("Geometry optimisation", allow_none=False)
     optimisation = tl.Unicode("cell lengths", allow_none=False)
     maximum_force = tl.Float(0.001, allow_none=False)
@@ -18,7 +19,14 @@ class MLIPWorkflowModel(tl.HasTraits):
     architecture = tl.Unicode("mace", allow_none=False)
     submitted = tl.Bool(False).tag(sync=True)
     use_dftd3 = tl.Bool(False).tag(sync=True)
+
+    #phonon parameters
     auto_bands = tl.Bool(True).tag(sync=True)
+    supercell_size_x = tl.Int(1).tag(sync=True)
+    supercell_size_y = tl.Int(1).tag(sync=True) 
+    supercell_size_z = tl.Int(1).tag(sync=True)
+    number_points = tl.Int(51).tag(sync=True)
+
 
 
     default_guide = ""
@@ -238,12 +246,65 @@ class PhononOptionsWidget(ipw.VBox):
         super().__init__(**kwargs)
         self.model = model
         self.rendered = False
+
+        style = {'description_width': 'initial'}
+        self.x_axis_input = ipw.BoundedIntText(
+            value=self.model.supercell_size_x,
+            min=1,
+            max=10,
+            step=1,
+            description="supercell size in x:", 
+            style=style,
+            disabled=False,
+            layout=ipw.Layout(width="80%"),
+        )
+        tl.link((self.x_axis_input, "value"), (self.model, "supercell_size_x"))
+
+        self.y_axis_input = ipw.BoundedIntText(
+            value=self.model.supercell_size_y,
+            min=1,
+            max=10,
+            step=1,
+            description="supercell size in y:",
+            style=style,
+            disabled=False,
+            layout=ipw.Layout(width="80%"),
+        )
+        tl.link((self.y_axis_input, "value"), (self.model, "supercell_size_y"))
+
+        self.z_axis_input = ipw.BoundedIntText(
+            value=self.model.supercell_size_z,
+            min=1,
+            max=10,
+            step=1,
+            description="supercell size in z:",
+            style=style,
+            disabled=False,
+            layout=ipw.Layout(width="80%"),
+        )
+        tl.link((self.z_axis_input, "value"), (self.model, "supercell_size_z"))
+
+        self.points_input = ipw.BoundedIntText(
+            value=self.model.number_points,
+            min=1,
+            max=100,
+            step=1,
+            description="number of points:",
+            style=style,
+            disabled=False,
+            layout=ipw.Layout(width="80%"),
+        )
+        tl.link((self.points_input, "value"), (self.model, "number_points"))
       
         self.enable_auto_bands_chk = ipw.Checkbox(
             value=True, description="Auto bands calculation", indent=True
         )
                 
         self.children = [
+            self.x_axis_input,
+            self.y_axis_input,
+            self.z_axis_input,
+            self.points_input,
             self.enable_auto_bands_chk,
         ]
 
