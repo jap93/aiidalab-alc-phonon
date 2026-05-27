@@ -17,6 +17,8 @@ from aiidalab_alc.results import ResultsModel
 from aiidalab_alc.structure import StructureStepModel
 from aiidalab_alc.workflow import MLIPWorkflowModel
 
+from ase import Atoms
+import numpy as np
 
 class MainAppModel(tl.HasTraits):
     """The main AiiDAlab application MVC model."""
@@ -33,7 +35,7 @@ class MainAppModel(tl.HasTraits):
 
         self.resource_model.observe(self._submit_model, "submitted")
         dlink((self, "block_results"), (self.results_model, "blocked"))
-
+        print("resuly_model", self.results_model.process_uuid)
         self.process = None
 
         return
@@ -44,9 +46,10 @@ class MainAppModel(tl.HasTraits):
             self.process = MLIPProcess(self)
             self.process.submit_process()
             self.block_results = False
-            print("process node ", self.process.node.uuid)
+
             self.results_model.process_uuid = self.process.node.uuid
-            print("resuly_model", self.results_model.process_uuid)
+            print("_submit_model: process node ", self.process.node.uuid, "results model process uuid", self.results_model.process_uuid)
+            
         else:
             print("ERROR: Input Validation Failed")
         return
@@ -105,8 +108,9 @@ class MLIPProcess:
         print("code", code)
         device = self.model.resource_model.device_name
         print("device", device)        
-        structure = self.model.structure_model.structure
+        structure = StructureData(ase=self.model.structure_model.structure.get_ase())
         
+        print("structure", structure)
         model_file = self.model.workflow_model.force_field
         if not Path(model_file).exists():
             print("model file does not exist", model_file)
@@ -131,7 +135,9 @@ class MLIPProcess:
             if optimisation == "cell lengths":
                 inputs_geom["opt_cell_lengths"] = Bool(True)
             else:
-                inputs_geom["opt_cell_fully"] = Bool(False)
+                inputs_geom["opt_cell_fully"] = Bool(True)
+
+            print("inputs",inputs_geom)
         
             geomoptCalc = CalculationFactory("mlip.opt")
 
@@ -140,7 +146,7 @@ class MLIPProcess:
                 "code": code,
                 "model": mlip_model,
                 "struct": structure,
-                "device": Str(device),
+                "device": Str("cpu"),
                 "metadata": {"options": {"resources": {"num_machines": 1}}},
             }
         
@@ -154,11 +160,59 @@ class MLIPProcess:
             **inputs_geom
         )
 
-        # Map outputs to the WorkGraph
         wg.outputs.results = wg.tasks.geomopt_calc.outputs.results_dict
-        if calculation_style == "geometry optimisation":
-            wg.outputs.structure = wg.tasks.geomopt_calc.outputs.structure
+        wg.outputs.results_file = wg.tasks.geomopt_calc.outputs.xyz_output
 
-        self.node = wg.submit()
-        print(f"WorkGraph submitted: {self.node.uuid}")
+        wg.tasks.geomopt_calc
+
+        wg.run()
+
+        type(wg.outputs.results_file.value)
+
+        print("outputs", wg.outputs)
+
+        print("results", wg.outputs.results.value.get_dict())
+        self.model.results_model.final_structure = StructureData(ase=self.dict_to_ase_atoms(wg.outputs.results.value.get_dict()))
+        print("results_file", wg.outputs.results_file.value)
+        self.node = wg.outputs.results_file.value
+
+
+        if wg.process.is_failed:
+            print("WorkGraph failed")
+
+        if wg.process.exit_status != 0:
+            print(f"Failed with exit status {wg.process.exit_status}")
+
+        # optional, if supported
+        if hasattr(wg.process, "exit_message"):
+            print(f"WorkGraph exit message: {wg.process.exit_message}")
+
+        # Map outputs to the WorkGraph
+        #wg.outputs.results = wg.tasks.geomopt_calc.outputs.results_dict
+        #print("results", wg.outputs.results)
+
+        #self.node = wg.nodes[0]
+        #print(f"WorkGraph complete: {self.node.uuid}")
         return
+    
+    
+
+
+    def dict_to_ase_atoms(self, data: dict) -> Atoms:
+        atoms = Atoms(
+            numbers=np.asarray(data["numbers"], dtype=int),
+            positions=np.asarray(data["positions"], dtype=float),
+            cell=np.asarray(data["cell"], dtype=float),
+            pbc=tuple(data["pbc"]),
+        )
+
+        if "masses" in data:
+            atoms.set_masses(np.asarray(data["masses"], dtype=float))
+
+        if "info" in data:
+            atoms.info.update(data["info"])
+
+        if "mace_forces" in data:
+            atoms.arrays["mace_forces"] = np.asarray(data["mace_forces"], dtype=float)
+
+        return atoms

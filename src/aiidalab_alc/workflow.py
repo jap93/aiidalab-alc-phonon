@@ -289,7 +289,7 @@ class PhononOptionsWidget(ipw.VBox):
             min=1,
             max=100,
             step=1,
-            description="number of points:",
+            description="   number of points:",
             style=style,
             disabled=False,
             layout=ipw.Layout(width="80%"),

@@ -55,6 +55,7 @@ class ResultsModel(ProcessModel):
     """MVC results step model."""
 
     blocked = tl.Bool(False)
+    final_structure = tl.Instance(StructureData, allow_none=True)
 
 
 class ResultsWizardStep(ipw.VBox, awb.WizardAppWidgetStep):
@@ -74,7 +75,6 @@ class ResultsWizardStep(ipw.VBox, awb.WizardAppWidgetStep):
         super().__init__(**kwargs)
         self.model = model
         self.rendered = False
-        print("process uuid", self.model.process_uuid)
         self.model.observe(self._on_process_uuid_change, "process_uuid")
 
     def _on_process_uuid_change(self, _):
@@ -117,25 +117,31 @@ class ResultsWizardStep(ipw.VBox, awb.WizardAppWidgetStep):
         return bands_data, dos_data
 
     def _update_view(self):
-        if not self.model.has_process:
+
+        print("ResultsWizardStep __init__ model process uuid", self.model.process_uuid)
+        print("has process", self.model.has_process)
+        #if not self.model.has_process:
+        if not self.model.process_uuid:
             self.children = [ipw.HTML("Waiting for calculation results...")]
             return
 
-        # Process status monitor
-        status_vwr = awb.ProcessStatusWidget(self.model.process.uuid)
-
-        outputs = dict(self.model.outputs)
+        data_node = load_node(self.model.process_uuid)
+        #print("data_node", data_node)
+        #print("data_node outputs", data_node.get_dict()) #.get("results"))
+        
+        #outputs = None #dict(self.model.outputs)
 
         # 1. Structure Panel
-        structure_node = next((n for n in outputs.values() if isinstance(n, StructureData)), None)
-        if structure_node:
-            structure_vwr = awb.viewers.StructureDataViewer(structure=structure_node)
-        else:
-            structure_vwr = ipw.HTML("<p>No output structure found for this process.</p>")
+        structure_node = self.model.final_structure
+        #structure_node = next((n for n in outputs.values() if isinstance(n, StructureData)), None)
+        #if structure_node:
+        structure_vwr = awb.viewers.StructureDataViewer(structure=structure_node)
+        #else:
+        #    structure_vwr = ipw.HTML("<p>No output structure found for this process.</p>")
 
         # 2. Phonon Dispersion Panel
-        bands_node = next((n for n in outputs.values() if isinstance(n, BandsData)), None)
-
+        #bands_node = next((n for n in outputs.values() if isinstance(n, BandsData)), None)
+        bands_node = None
         if bands_node:
             phonon_vwr = BandsDataViewer(bands_node, downloadable=True)
         else:
@@ -177,7 +183,8 @@ class ResultsWizardStep(ipw.VBox, awb.WizardAppWidgetStep):
             bs.set_kpoints(kpoints)
             bs.set_bands(bands)
             bs.labels = [(0, "GAMMA"), (5, "X"), (6, "Z"), (11, "U")]
-            phonon_vwr = BandsDataViewer(bs.store(), downloadable=True)
+            np.bool8 = np.bool
+            phonon_vwr = BandsDataViewer(bs, downloadable=True)
 
         # Result tabs
         tabs = ipw.Tab(children=[structure_vwr, phonon_vwr])
@@ -185,8 +192,7 @@ class ResultsWizardStep(ipw.VBox, awb.WizardAppWidgetStep):
         tabs.set_title(1, "Phonon Dispersion")
 
         self.children = [
-            ipw.HTML(f"<h3>Results for Process: {self.model.process_uuid}</h3>"),
-            status_vwr,
+            ipw.HTML(f"<h4>Results for Process: {self.model.process_uuid}</h4>"),
             tabs,
         ]
         
